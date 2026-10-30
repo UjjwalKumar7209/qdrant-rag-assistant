@@ -2,7 +2,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
+from qdrant_client.models import Distance, VectorParams, PointStruct
+from sentence_transformers import SentenceTransformer
 
 # Loading envs
 load_dotenv()
@@ -43,3 +44,32 @@ with open("my_facts.txt", "r", encoding="utf-8") as f:
     ]
 
 print(f"Loaded {len(documents)} documents")
+
+# Creating embedding
+print("Loading embedding model")
+embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+print("Embedding model ready!")
+
+embeddings = embed_model.encode(documents)
+print(f"Generated {len(embeddings)} embeddings")
+
+# Creating qdrant points
+points = []
+
+for i, embedding in enumerate(embeddings):
+    point = PointStruct(
+        id=i+1,
+        vector=embedding.tolist(),
+        payload={
+            "text": documents[i]
+        }
+    )
+    points.append(point)
+
+# upload qdrant
+qdrant_client.upsert(
+    collection_name=COLLECTION_NAME,
+    points=points
+)
+
+print(f"Uploaded {len(points)} document to qdrant!")
